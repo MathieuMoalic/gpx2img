@@ -5,33 +5,34 @@
 
   outputs = { self, nixpkgs }:
     let
-      systems = [ "x86_64-linux" "aarch64-linux" ];
-      forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f system);
+      system = "x86_64-linux";
+      pkgs = import nixpkgs { inherit system; };
     in
     {
-      devShells = forAllSystems (system:
-        let
-          pkgs = import nixpkgs { inherit system; };
-          pythonEnv = pkgs.python312.withPackages (ps: with ps; [
-            pip
-            pytest
-            gpxpy
-            fastapi
-            uvicorn
-            python-multipart
-          ]);
-        in
-        {
-          default = pkgs.mkShell {
-            packages = with pkgs; [
-              pythonEnv
-              jdk
-              osmium-tool
-              just
-              zip
-              unzip
-            ];
-          };
-        });
+      devShells.x86_64-linux.default = pkgs.mkShell {
+        packages = with pkgs; [
+          python312
+          jdk
+          osmium-tool
+          just
+          zip
+          unzip
+        ];
+
+        shellHook = ''
+          # create and activate venv, then install Python deps into it
+          if [ -z "${VIRTUAL_ENV-}" ]; then
+            if [ ! -d .venv ]; then
+              echo "Creating .venv and installing Python deps..."
+              python -m venv .venv
+              . .venv/bin/activate
+              python -m pip install --upgrade pip
+              pip install -e ".[dev]"
+            else
+              . .venv/bin/activate
+            fi
+          fi
+        '';
+      };
     };
 }
