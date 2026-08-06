@@ -34,6 +34,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="Per-tile extraction overlap in degrees to avoid edge clipping (default: 0.002)",
     )
     parser.add_argument(
+        "--levels",
+        type=str,
+        default="0:24,1:22,2:20,3:18,4:16",
+        help="mkgmap --levels value (default: '0:24,1:22,2:20,3:18,4:16')",
+    )
+    parser.add_argument(
+        "--overview-levels",
+        type=str,
+        default="3:18,4:16",
+        help="mkgmap --overview-levels value (default: '3:18,4:16')",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Only compute route bounds and tile list without running osmium/mkgmap",
@@ -52,6 +64,8 @@ def main() -> None:
         buffer_km=args.buffer_km,
         overlap_degrees=args.overlap_degrees,
         dry_run=args.dry_run,
+        levels=args.levels,
+        overview_levels=args.overview_levels,
     )
     print(json.dumps(manifest, indent=2))
 

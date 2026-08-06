@@ -114,6 +114,8 @@ def compile_tiles(
     buffer_km: float,
     overlap_degrees: float,
     dry_run: bool,
+    levels: str = "0:24,1:22,2:20,3:18,4:16",
+    overview_levels: str = "3:18,4:16",
 ) -> dict[str, object]:
     if not dry_run:
         require_binary("java")
@@ -174,8 +176,8 @@ def compile_tiles(
                     "--description=OSM street map",
                     "--family-id=6324",
                     "--product-id=1",
-                    "--levels=0:24,1:22,2:20,3:18,4:16",
-                    "--overview-levels=3:18,4:16",
+                    f"--levels={levels}",
+                    f"--overview-levels={overview_levels}",
                     str(osm_extract),
                 ],
             )
