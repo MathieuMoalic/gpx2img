@@ -44,6 +44,18 @@ With `just` (recommended, runs through `nix develop`):
 just build /path/to/route.gpx /path/to/region.osm.pbf /path/to/mkgmap.jar
 ```
 
+Run the web app (requires mkgmap and osm PBF accessible to the server):
+
+```bash
+just serve 0.0.0.0 8000
+```
+
+Then POST multipart/form-data to /generate with fields:
+- gpx_file: file
+- osm_pbf: absolute path to OSM PBF on server
+- mkgmap_jar: absolute path to mkgmap.jar on server
+- buffer_km, overlap_degrees, levels, overview_levels (optional)
+
 This creates:
 
 - `output/11/<x>/<y>.img`

@@ -16,6 +16,9 @@
             pip
             pytest
             gpxpy
+            fastapi
+            uvicorn
+            python-multipart
           ]);
         in
         {
