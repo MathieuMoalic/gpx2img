@@ -4,4 +4,10 @@ __pycache__/
 dist/
 build/
 tmp/
+output/
 .DS_Store
+/.direnv
+/test.gpx
+/mkgmap-r4924
+/output/_work
+/wielkopolskie-260805.osm.pbf

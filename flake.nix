@@ -24,6 +24,7 @@
               pythonEnv
               jdk
               osmium-tool
+              just
               zip
               unzip
             ];

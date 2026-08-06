@@ -38,6 +38,12 @@ gpx2img \
   --output-dir /path/to/output
 ```
 
+With `just` (recommended, runs through `nix develop`):
+
+```bash
+just build /path/to/route.gpx /path/to/region.osm.pbf /path/to/mkgmap.jar
+```
+
 This creates:
 
 - `output/11/<x>/<y>.img`
@@ -54,6 +60,12 @@ gpx2img \
   --osm-pbf /path/to/region.osm.pbf \
   --mkgmap-jar /path/to/mkgmap.jar \
   --dry-run
+```
+
+With `just`:
+
+```bash
+just dry-run /path/to/route.gpx /path/to/region.osm.pbf /path/to/mkgmap.jar
 ```
 
 ## Notes from watch validation
