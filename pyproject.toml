@@ -1,0 +1,24 @@
+[build-system]
+requires = ["hatchling>=1.24.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gpx2img"
+version = "0.1.0"
+description = "Generate Zepp OS watch map tiles (11/x/y.img) from a GPX route."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "gpxpy>=1.6.2",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.2.0",
+]
+
+[project.scripts]
+gpx2img = "gpx2img.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

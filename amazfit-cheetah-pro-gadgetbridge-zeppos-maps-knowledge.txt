@@ -1,0 +1,640 @@
+AMAZFIT CHEETAH PRO + GADGETBRIDGE
+OFFLINE ZEPP OS MAPS — WORKING METHOD AND TROUBLESHOOTING NOTES
+
+Created: 2026-08-05
+Device: Amazfit Cheetah Pro
+Phone: Android only
+Sync/application method: Gadgetbridge, without Zepp
+Map format: tiled Garmin IMG files used by Zepp OS
+
+======================================================================
+1. THE MOST IMPORTANT FINDING
+======================================================================
+
+A map can be structurally valid, installed in the correct directory, and still
+show a blank route preview.
+
+The decisive issue in this case was not:
+
+- FTP transfer
+- folder ordering
+- x/y tile ordering
+- duplicate filenames
+- being physically away from the route
+- missing adjacent tiles
+- routing versus non-routing alone
+
+The decisive issue was MAP DETAIL AT THE FAR/OVERVIEW ZOOM LEVEL.
+
+A short local route worked because the watch previewed it at a relatively close
+map scale. The 23 km Babia Góra loop forced the route preview to zoom farther
+out. The early IMG files contained paths, roads, forests, and other useful
+features only at close zoom levels. At the far overview level there were only
+about three major-road lines and one polygon, none of which produced a useful
+background near the high-mountain route.
+
+The successful Babia Góra build promoted important map features into the far
+overview level:
+
+- paths and hiking trails
+- tracks
+- roads
+- streams and water features
+- forest and land-cover polygons
+- protected-area polygons
+- peaks
+- shelters and huts
+- other useful mountain context
+
+Observed overview-content counts:
+
+Old Babia west tile:
+  3 lines, 1 polygon
+
+Old Babia east tile:
+  3 lines, 1 polygon
+
+Successful Babia west tile:
+  550 lines, 14 polygons
+
+Successful Babia east tile:
+  2,320 lines, 29 polygons
+
+This was the change that made the long Babia route preview display a map.
+
+RULE FOR FUTURE MAPS:
+
+Do not merely compile an OSM extract into IMG files. Verify that useful map
+geometry exists at the farthest map level that the watch will use when fitting
+the entire route on screen. Long routes require meaningful overview-level
+content.
+
+
+======================================================================
+2. CONFIRMED WATCH DIRECTORY STRUCTURE
+======================================================================
+
+The watch expects Zepp OS map tiles in this structure:
+
+  /mnt/data/map/res/scl/11/<x>/<y>.img
+
+The fixed folder "11" is the Zepp OS map zoom/tile directory used by
+Gadgetbridge's documented process.
+
+Example:
+
+  /mnt/data/map/res/scl/11/1135/698.img
+
+The coordinate order is:
+
+  11 / x / y.img
+
+It is not:
+
+  11 / y / x.img
+
+Do not accidentally create:
+
+  /mnt/data/map/res/scl/11/11/<x>/<y>.img
+
+The final path must have only one "11" component.
+
+
+======================================================================
+3. CONFIRMED WORKING FILES FROM THIS SESSION
+======================================================================
+
+A. Local test map that rendered correctly
+
+Centre:
+  49°37'47.8"N 19°45'28.6"E
+  Decimal: 49.629944, 19.757944
+
+Watch path:
+  /mnt/data/map/res/scl/11/1136/697.img
+
+IMG file size:
+  403,456 bytes
+
+Package:
+  zeppos-test-map-49.629944-19.757944.zip
+
+Package SHA-256:
+  855228e1aeb1706eeda8db79c6a000142399a2c23ef904bde73729bb9d8ae030
+
+
+B. Final successful Babia Góra map
+
+Watch paths:
+
+  /mnt/data/map/res/scl/11/1134/698.img
+  /mnt/data/map/res/scl/11/1135/698.img
+
+Final successful sizes:
+
+  11/1134/698.img
+  93,696 bytes
+
+  11/1135/698.img
+  372,736 bytes
+
+Package:
+  babia-gora-zeppos-overview-fix.zip
+
+Package SHA-256:
+  4596c6c8056d89742aa6f191a1b5d130940b0015eaf28ce95b4d432cfe9e413a
+
+The final successful package contained only these two Babia tiles. Extra
+diagnostic northern tiles were not required after the overview-level issue was
+fixed.
+
+
+======================================================================
+4. KNOWN-WORKING IMG CHARACTERISTICS
+======================================================================
+
+A downloaded official/known-working watch tile named 672.img was used as a
+control sample.
+
+Observed characteristics of the working tile:
+
+- DSKIMG signature
+- GARMIN signature
+- description: "OSM street map"
+- internal map ID observed: 63240001
+- subfiles:
+    RGN
+    TRE
+    LBL
+- no NET or NOD routing subfiles
+
+A local test tile compiled to match this simple, non-routing profile and worked
+on the watch.
+
+Important qualification:
+
+The final root cause was overview-level content, not merely the absence of
+NET/NOD. Nevertheless, matching the known-working non-routing structure is a
+sensible baseline for future builds.
+
+Recommended baseline:
+
+- generate non-routing IMG tiles
+- include RGN/TRE/LBL
+- avoid unnecessary routing data unless it is proven compatible
+- preserve the simple "OSM street map" style/profile
+- then verify overview-level feature population
+
+
+======================================================================
+5. TILE CALCULATION
+======================================================================
+
+The files use standard slippy-map x/y tile coordinates at zoom 11.
+
+For latitude "lat" and longitude "lon" in decimal degrees:
+
+  n = 2^11
+
+  x = floor((lon + 180) / 360 * n)
+
+  y = floor(
+        (1 - asinh(tan(lat in radians)) / pi) / 2 * n
+      )
+
+Equivalent y formula:
+
+  y = floor(
+        (1 - ln(tan(lat_rad) + sec(lat_rad)) / pi) / 2 * n
+      )
+
+Examples confirmed in this project:
+
+  49.629944, 19.757944
+    -> x = 1136
+    -> y = 697
+
+Babia Góra route coverage:
+    -> x = 1134 and 1135
+    -> y = 698
+
+The route was near a 697/698 boundary, but missing neighbour tiles was not the
+final cause. The two correctly generated y=698 tiles were sufficient once
+overview content was fixed.
+
+
+======================================================================
+6. SOURCE DATA AND COMPILER USED
+======================================================================
+
+Compiler:
+  mkgmap release r4924
+
+Uploaded compiler archive:
+  mkgmap-r4924.zip
+
+OSM source:
+  malopolskie-260803.osm.pbf
+
+The regional PBF was approximately 191 MB.
+
+Official/reference download locations:
+
+mkgmap:
+  https://www.mkgmap.org.uk/download/mkgmap.html
+
+Geofabrik Małopolskie:
+  https://download.geofabrik.de/europe/poland/malopolskie.html
+
+Gadgetbridge Zepp OS documentation:
+  https://gadgetbridge.org/basics/topics/zeppos/
+
+Gadgetbridge-tools map generator source:
+  https://codeberg.org/Freeyourgadget/Gadgetbridge-tools
+
+Docker wrapper investigated:
+  https://github.com/Gared/zeppos-map-creator
+
+
+======================================================================
+7. RECOMMENDED GENERATION WORKFLOW FOR FUTURE MAPS
+======================================================================
+
+1. Determine the route's complete geographic bounds.
+
+2. Add a sensible buffer around the route.
+   A route line exactly on a tile edge may reference objects whose nodes or
+   polygons extend outside the nominal tile. Extraction must retain referenced
+   nodes and complete nearby ways.
+
+3. Calculate every zoom-11 x/y tile touched by the buffered bounds.
+
+4. Extract OSM data for each tile, preferably with overlap/buffer.
+   Avoid cutting ways without their referenced nodes.
+
+5. Compile one Garmin IMG per tile using mkgmap.
+
+6. Use a simple non-routing baseline matching the known-working file:
+   - RGN/TRE/LBL
+   - no NET/NOD unless specifically tested
+   - ordinary Garmin IMG
+   - description/profile comparable to "OSM street map"
+
+7. MOST IMPORTANT:
+   Use an mkgmap style in which useful features are present at the far overview
+   level, not only at close zoom.
+
+   At minimum, the overview should include:
+   - footways, paths, tracks
+   - primary through minor roads
+   - waterways
+   - forest/wood/land-cover polygons
+   - protected-area boundaries or polygons
+   - major peaks and huts/shelters where supported
+
+8. Inspect the generated IMG/TRE level statistics before delivery.
+   A long-route map is suspicious if the farthest level contains only a handful
+   of lines or polygons.
+
+9. Package files exactly as:
+
+     11/
+       <x>/
+         <y>.img
+
+10. ZIP the top-level "11" directory.
+
+11. Verify:
+    - ZIP integrity
+    - exact file paths
+    - non-zero IMG sizes
+    - geographic bounds
+    - relevant feature counts at all TRE levels
+    - route lies inside generated coverage
+
+12. Test first with:
+    - one short local route
+    - one longer route requiring an overview zoom
+
+A successful one-tile local test proves the watch can parse the IMG format, but
+does not prove that a long route will work. The long-route overview must also be
+tested.
+
+
+======================================================================
+8. ANDROID-ONLY TRANSFER PROCEDURE
+======================================================================
+
+The map can be transferred with Android only.
+
+A. Prepare the package
+
+1. Download the ZIP.
+2. Extract it with an Android file manager.
+3. Confirm that the extracted directory starts with:
+
+     11/<x>/<y>.img
+
+B. Start the watch network services through Gadgetbridge
+
+1. Open the Cheetah Pro in Gadgetbridge.
+2. Open developer options.
+3. Start the watch Wi-Fi hotspot.
+4. Connect the Android phone to the watch hotspot.
+5. Android may say the network has no internet. Stay connected.
+6. Return to Gadgetbridge.
+7. Start the FTP server.
+8. Set FTP root to:
+
+     /mnt/data
+
+9. Note the IP address, port, username, and password shown by Gadgetbridge.
+
+C. Upload
+
+1. Use an Android FTP client.
+2. Use ordinary FTP, not SFTP.
+3. Connect using the Gadgetbridge-provided details.
+4. Navigate to:
+
+     /map/res/scl/
+
+   Because the FTP root is already /mnt/data, the FTP client may display the
+   destination without the /mnt/data prefix.
+
+5. Merge/upload the extracted "11" folder.
+
+6. Confirm exact remote paths and sizes.
+
+D. Activate
+
+1. Stop the FTP server.
+2. Stop the watch hotspot.
+3. Restart the watch after replacing map files.
+4. On the watch:
+     Settings -> Map -> Show base map
+5. Toggle Show base map off and back on after significant replacements.
+6. Open the route preview or start Hiking/Trail Running navigation.
+
+
+======================================================================
+9. WHAT EACH TEST PROVED
+======================================================================
+
+Test: Correct directory structure
+Result:
+  The watch detected a base-map resource, but this alone did not prove that
+  routes would render.
+
+Test: Correct x/y ordering
+Result:
+  11/1134/698.img and 11/1135/698.img were already correct. Reversing coordinate
+  order was not the issue.
+
+Test: Physical distance from the route
+Result:
+  A route near the user's current position displayed a preview. A remote route
+  remained blank. Initially this suggested location dependence, but the final
+  overview-enabled Babia build rendered, so physical distance was not the root
+  cause.
+
+Test: Routing versus non-routing
+Result:
+  Matching the working RGN/TRE/LBL-only structure was useful, but the long route
+  still failed until overview-level content was added.
+
+Test: File overwrite
+Result:
+  The two Babia files had different correct sizes in separate folders.
+  Overwriting was ruled out.
+
+Test: Extra neighbouring tiles
+Result:
+  A four-slot diagnostic package still showed a blank preview.
+  Missing neighbouring tiles was ruled out.
+
+Test: Combined map copied into several tile slots
+Result:
+  Still blank before overview correction.
+  Multi-tile switching alone was not the cause.
+
+Test: Overview feature population
+Result:
+  Increasing useful far-zoom content made the Babia map display.
+  This was the successful fix.
+
+
+======================================================================
+10. FAILED OR MISLEADING DIAGNOSES TO AVOID
+======================================================================
+
+Do not assume any of the following without binary evidence:
+
+- "The user is too far away from the route."
+- "The route preview never shows maps unless a workout has started."
+- "The tile x/y coordinates must be reversed."
+- "Both same-named files were overwritten."
+- "The watch requires extra surrounding tiles."
+- "The watch cannot render more than one tile."
+- "Non-routing format alone solves the issue."
+- "A valid ZIP and correct folder paths prove the map is correct."
+
+The screenshots and file sizes should be examined, but IMG internals and map
+levels are more decisive than visual guesses.
+
+
+======================================================================
+11. TROUBLESHOOTING CHECKLIST
+======================================================================
+
+Problem: Watch does not detect any base map
+
+Check:
+- Settings -> Map -> Show base map
+- FTP root was /mnt/data
+- final path is /mnt/data/map/res/scl/11/x/y.img
+- there is no duplicated /11/11/
+- files are not still inside a ZIP
+- IMG files are non-zero
+- watch was restarted
+
+
+Problem: Short local route works, long route is blank
+
+Most likely:
+- insufficient features at far/overview map level
+
+Check:
+- TRE/map level statistics
+- number of lines and polygons at farthest level
+- paths and land polygons are promoted to overview
+- full route fit-to-screen zoom has drawable content
+
+
+Problem: One part of a route has a map, another part is blank
+
+Check:
+- every touched x/y tile exists
+- tile bounds include the route
+- extraction retained complete ways and referenced nodes
+- all tiles were compiled with the same style and level scheme
+
+
+Problem: Watch detects resource size but preview is blank
+
+This proves only:
+- one or more files exist in the expected resource directory
+
+It does not prove:
+- valid geographic bounds
+- correct tile coordinate
+- compatible IMG internals
+- useful content at the preview zoom
+- complete route coverage
+
+
+Problem: Two files have the same y filename
+
+This is normal.
+
+Example:
+  11/1134/698.img
+  11/1135/698.img
+
+Android file managers can confuse identically named files if they are extracted
+or moved outside their parent directories. Always preserve the x folders.
+
+
+======================================================================
+12. BINARY/BUILD VERIFICATION TO REQUEST FROM A FUTURE MAP BUILDER
+======================================================================
+
+Before accepting a future map package, ask for all of the following:
+
+- exact route bounding box
+- zoom-11 x/y tile list
+- exact ZIP directory listing
+- each IMG byte size
+- SHA-256 of the ZIP
+- non-routing/routing status
+- IMG subfile list
+- internal map description
+- TRE level list
+- line count per level
+- polygon count per level
+- confirmation that hiking paths exist at the route-preview overview level
+- confirmation that route coordinates lie within generated map bounds
+
+A response saying only "mkgmap completed successfully" is not sufficient.
+
+
+======================================================================
+13. REUSABLE PROMPT FOR A FUTURE CHAT
+======================================================================
+
+Copy the following prompt into a future regular chat and attach:
+
+- the route GPX
+- an appropriate regional .osm.pbf file
+- mkgmap-r4924.zip, unless the environment already has mkgmap
+
+PROMPT START
+
+I need a Zepp OS offline map package for an Amazfit Cheetah Pro, transferred
+through Gadgetbridge.
+
+Generate tiled Garmin IMG files in exactly this structure:
+
+  11/<slippy-map-x>/<slippy-map-y>.img
+
+Use standard slippy-map coordinates at zoom 11.
+
+Use a simple non-routing profile compatible with a known-working watch tile:
+RGN/TRE/LBL only, without NET/NOD unless there is a specific reason.
+
+Critical requirement learned from a previous successful build:
+
+The route may be long, so its preview will zoom far out. Do not put hiking
+paths, tracks, forests, waterways, and other useful geometry only at close map
+levels. Promote useful route-context features into the far overview level.
+Inspect the generated TRE levels and report the line and polygon counts at
+every level. A map whose overview level contains only a few major roads is not
+acceptable.
+
+Please:
+
+1. Parse the attached GPX and calculate the buffered geographic bounds.
+2. Calculate all zoom-11 x/y tiles touched by the buffered route.
+3. Extract complete OSM ways and referenced nodes for each tile with overlap.
+4. Compile each tile with mkgmap.
+5. Include paths, tracks, roads, waterways, forests/land cover, protected areas,
+   peaks, huts, and shelters at an overview level suitable for fitting the full
+   route on the watch screen.
+6. Verify IMG subfiles and geographic bounds.
+7. Verify ZIP integrity.
+8. Provide:
+   - the ZIP
+   - exact paths and byte sizes
+   - SHA-256
+   - tile bounds
+   - TRE level counts
+   - explanation of overview-level styling
+9. Do not assume that correct folders alone mean the map works.
+
+Reference successful Babia package characteristics:
+
+  11/1134/698.img = 93,696 bytes
+  11/1135/698.img = 372,736 bytes
+
+The successful fix increased far-overview content from approximately
+3 lines/1 polygon per Babia tile to:
+
+  west: 550 lines, 14 polygons
+  east: 2,320 lines, 29 polygons
+
+PROMPT END
+
+
+======================================================================
+14. NOTES ABOUT TERMUX FAILURE ENCOUNTERED
+======================================================================
+
+An attempted phone-side Debian setup failed before Debian installation because
+Termux Python's _ssl module and the installed OpenSSL library were mismatched.
+
+Observed error:
+
+  ImportError: dlopen failed: cannot locate symbol
+  "X509_STORE_get1_objects"
+  referenced by:
+  _ssl.cpython-314-aarch64-linux-android.so
+
+This was a Termux package-set/ABI mismatch, not a problem with mkgmap, Debian,
+the OSM PBF, Gadgetbridge, or the watch.
+
+Because map generation was performed elsewhere, this Termux issue did not need
+to be solved for the successful watch installation.
+
+
+======================================================================
+15. FINAL PRACTICAL SUMMARY
+======================================================================
+
+For future maps:
+
+1. Obtain the GPX and regional OSM PBF.
+2. Determine zoom-11 x/y coverage.
+3. Compile non-routing Garmin IMG tiles.
+4. Place them under 11/x/y.img.
+5. Make sure useful terrain and trail context exists at the FAR OVERVIEW LEVEL.
+6. Verify level statistics before sending the ZIP.
+7. Upload via Gadgetbridge hotspot + FTP rooted at /mnt/data.
+8. Restart the watch and enable Show base map.
+9. Test both a short and a long route preview.
+
+The single most valuable phrase to preserve is:
+
+  "The watch can load a valid tile but display a blank long-route preview when
+   the far overview map level contains no useful paths or polygons."
+
+END OF FILE
