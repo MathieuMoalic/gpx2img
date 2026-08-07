@@ -202,8 +202,16 @@ def tiles_for_bounds(bounds: Bounds, zoom: int = ZOOM) -> set[tuple[int, int]]:
     return {(x, y) for xr in x_ranges for x in xr for y in ys}
 
 
-def run_command(args: list[str]) -> None:
-    subprocess.run(args, check=True)
+def run_command(args: list[str], *, label: str) -> None:
+    try:
+        subprocess.run(args, check=True, capture_output=True, text=True)
+    except FileNotFoundError as exc:
+        raise RuntimeError(f"Missing required binary while running {label}") from exc
+    except subprocess.CalledProcessError as exc:
+        stderr = (exc.stderr or "").strip()
+        stdout = (exc.stdout or "").strip()
+        details = stderr or stdout or f"exit status {exc.returncode}"
+        raise RuntimeError(f"{label} failed: {details}") from exc
 
 
 def require_binary(name: str) -> None:
@@ -279,6 +287,7 @@ def compile_tiles(
                     str(osm_extract),
                     str(osm_pbf_path),
                 ],
+                label=f"osmium extract z11/{x}/{y}",
             )
             emit(f"[{idx}/{total}] Running mkgmap for z11/{x}/{y}")
             run_command(
@@ -295,6 +304,7 @@ def compile_tiles(
                     f"--overview-levels={overview_levels}",
                     str(osm_extract),
                 ],
+                label=f"mkgmap z11/{x}/{y}",
             )
             final_dir.mkdir(parents=True, exist_ok=True)
             shutil.move(str(raw_img), str(final_img))

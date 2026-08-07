@@ -3,7 +3,11 @@
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
-  outputs = {self, nixpkgs, ...}: let
+  outputs = {
+    self,
+    nixpkgs,
+    ...
+  }: let
     systems = ["x86_64-linux"];
     forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f (import nixpkgs {inherit system;}));
     nixosModule = {
@@ -194,22 +198,23 @@
           ]);
       in
         pkgs.mkShell {
-        buildInputs = with pkgs; [
-          devPython
-          jdk
-          osmium-tool
-          just
-          zip
-          unzip
-          qmapshack
-        ];
+          buildInputs = with pkgs; [
+            devPython
+            jdk
+            osmium-tool
+            just
+            zip
+            unzip
+            qmapshack
+          ];
 
-        shellHook = ''
-          export PYTHONPATH="$PWD/src${PYTHONPATH:+:$PYTHONPATH}"
-        '';
-      };
+          shellHook = ''
+            export PYTHONPATH="$PWD/src${PYTHONPATH:+:$PYTHONPATH}"
+          '';
+        };
     });
 
     nixosModules.gpx2img = nixosModule;
+    nixosModules.gpx2img-service = nixosModule;
   };
 }
