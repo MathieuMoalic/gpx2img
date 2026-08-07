@@ -24,8 +24,9 @@
           # Create .venv using uv (astral uv) and activate it
           if [ ! -d ".venv" ]; then
             echo "Creating virtual environment with uv..."
-            uv venv .venv
+            uv venv --python ${pkgs.python312}/bin/python3 .venv
           fi
+          uv sync --extra dev
           . .venv/bin/activate
         '';
       };

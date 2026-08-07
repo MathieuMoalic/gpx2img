@@ -7,6 +7,7 @@ tmp/
 output/
 .DS_Store
 /.direnv
+/.env
 /test.gpx
 /mkgmap-r4924
 /output/_work

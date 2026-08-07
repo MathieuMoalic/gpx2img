@@ -28,6 +28,28 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
+Or with Nix + uv:
+
+```bash
+nix develop
+uv sync --extra dev
+```
+
+With direnv + .env defaults:
+
+```bash
+direnv allow
+```
+
+Expected `.env` keys:
+
+```bash
+GPX2IMG_TEST_GPX=/absolute/path/to/test.gpx
+GPX2IMG_OSM_PBF=/absolute/path/to/region.osm.pbf
+GPX2IMG_MKGMAP_JAR=/absolute/path/to/mkgmap.jar
+GPX2IMG_OUTPUT_DIR=output
+```
+
 ## Usage
 
 ```bash
@@ -49,6 +71,25 @@ Run the web app (requires mkgmap and osm PBF accessible to the server):
 ```bash
 just serve 0.0.0.0 8000
 ```
+
+Open:
+
+`http://localhost:8000`
+
+Use the form:
+- upload GPX
+- set `osm_pbf` and `mkgmap_jar` paths (or set env vars below)
+- click **Generate and download ZIP**
+
+Optional defaults for the Web UI/API:
+
+```bash
+export GPX2IMG_OSM_PBF=/absolute/path/to/region.osm.pbf
+export GPX2IMG_MKGMAP_JAR=/absolute/path/to/mkgmap.jar
+just serve
+```
+
+If you use `.env` + `direnv`, those fields are auto-prefilled in the Web UI.
 
 Then POST multipart/form-data to /generate with fields:
 - gpx_file: file
