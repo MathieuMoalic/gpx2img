@@ -8,7 +8,7 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
+from typing import Callable, Iterable
 
 import gpxpy
 
@@ -222,7 +222,12 @@ def compile_tiles(
     dry_run: bool,
     levels: str = "0:24,1:22,2:20,3:18,4:16",
     overview_levels: str = "3:18,4:16",
+    progress: Callable[[str], None] | None = None,
 ) -> dict[str, object]:
+    def emit(message: str) -> None:
+        if progress is not None:
+            progress(message)
+
     if not dry_run:
         require_binary("java")
         require_binary("osmium")
@@ -241,6 +246,7 @@ def compile_tiles(
     buffered = expand_bounds(route_bounds, buffer_km)
     tiles = sorted(tiles_for_bounds(buffered, ZOOM))
     LOGGER.info("Generating %d tiles", len(tiles))
+    emit(f"Generating {len(tiles)} tiles")
 
     tile_root = output_dir / "11"
     tile_root.mkdir(parents=True, exist_ok=True)
@@ -248,7 +254,8 @@ def compile_tiles(
     work_dir.mkdir(parents=True, exist_ok=True)
 
     manifest_tiles: list[dict[str, object]] = []
-    for x, y in tiles:
+    total = len(tiles)
+    for idx, (x, y) in enumerate(tiles, start=1):
         tb = tile_bounds(x, y, ZOOM)
         bbox = tile_extract_bounds(x, y, overlap_degrees, ZOOM)
         bbox_arg = f"{bbox.min_lon},{bbox.min_lat},{bbox.max_lon},{bbox.max_lat}"
@@ -260,6 +267,7 @@ def compile_tiles(
 
         if not dry_run:
             LOGGER.debug("Generating tile z11/%d/%d", x, y)
+            emit(f"[{idx}/{total}] Extracting tile source data for z11/{x}/{y}")
             run_command(
                 [
                     "osmium",
@@ -272,6 +280,7 @@ def compile_tiles(
                     str(osm_pbf_path),
                 ],
             )
+            emit(f"[{idx}/{total}] Running mkgmap for z11/{x}/{y}")
             run_command(
                 [
                     "java",

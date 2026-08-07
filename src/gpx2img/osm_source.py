@@ -7,6 +7,7 @@ import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 from urllib.parse import urlparse
 
 import httpx
@@ -99,26 +100,31 @@ class GeofabrikResolver:
         overlap_degrees: float,
         work_dir: Path,
         refresh_osm: bool = False,
+        progress: Callable[[str], None] | None = None,
     ) -> OSMResolution:
+        def emit(message: str) -> None:
+            LOGGER.info(message)
+            if progress is not None:
+                progress(message)
+
         required_geom, tiles, required_bounds = required_osm_geometry(gpx_path, buffer_km, overlap_degrees)
-        LOGGER.info("GPX requires %d zoom-11 tiles", len(tiles))
-        LOGGER.info(
-            "Required OSM bounds: %.6f,%.6f -> %.6f,%.6f",
-            required_bounds.min_lat,
-            required_bounds.min_lon,
-            required_bounds.max_lat,
-            required_bounds.max_lon,
+        emit(f"GPX requires {len(tiles)} zoom-11 tiles")
+        emit(
+            "Required OSM bounds: "
+            f"{required_bounds.min_lat:.6f},{required_bounds.min_lon:.6f} -> "
+            f"{required_bounds.max_lat:.6f},{required_bounds.max_lon:.6f}"
         )
 
-        regions = self._load_regions(refresh=refresh_osm)
+        emit("Loading Geofabrik index")
+        regions = self._load_regions(refresh=refresh_osm, progress=progress)
         best_single = self._choose_single_cover(regions, required_geom)
         multi = self._choose_multi_cover(regions, required_geom)
         chosen = self._pick_best_strategy(best_single, multi)
 
         if len(chosen) == 1:
             region = chosen[0]
-            pbf = self._ensure_pbf(region, refresh=refresh_osm)
-            LOGGER.info("OSM source: %s", region.id)
+            pbf = self._ensure_pbf(region, refresh=refresh_osm, progress=progress)
+            emit(f"OSM source: {region.id}")
             return OSMResolution(
                 pbf_path=pbf,
                 mode="single",
@@ -127,15 +133,18 @@ class GeofabrikResolver:
                 required_bounds=required_bounds,
             )
 
-        LOGGER.info("Route crosses multiple OSM extracts: %s", ", ".join(r.id for r in chosen))
+        emit(f"Route crosses multiple OSM extracts: {', '.join(r.id for r in chosen)}")
         extracted_inputs: list[Path] = []
         for region in chosen:
-            source = self._ensure_pbf(region, refresh=refresh_osm)
-            extracted_inputs.extend(self._crop_to_required_parts(source, required_geom, work_dir, region.id))
+            source = self._ensure_pbf(region, refresh=refresh_osm, progress=progress)
+            extracted_inputs.extend(
+                self._crop_to_required_parts(source, required_geom, work_dir, region.id, progress=progress),
+            )
 
         if not extracted_inputs:
             raise RuntimeError("Could not create cropped OSM extracts for merge")
         merged = work_dir / "resolved-source.osm.pbf"
+        emit(f"Merging {len(extracted_inputs)} cropped extracts")
         args = ["osmium", "merge", "--overwrite", "-o", str(merged), *[str(p) for p in extracted_inputs]]
         self._run(args, "Merging source extracts failed")
         self._validate_pbf_file(merged)
@@ -166,10 +175,12 @@ class GeofabrikResolver:
     def _index_cache_path(self) -> Path:
         return self.cache_dir / "geofabrik-index-v1.json"
 
-    def _load_regions(self, *, refresh: bool) -> list[GeofabrikRegion]:
+    def _load_regions(self, *, refresh: bool, progress: Callable[[str], None] | None = None) -> list[GeofabrikRegion]:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         index_path = self._index_cache_path()
         if refresh or self._is_stale(index_path, self.index_ttl_seconds):
+            if progress is not None:
+                progress("Downloading Geofabrik index")
             LOGGER.info("Downloading Geofabrik index")
             self._download_to(index_path, GEOFABRIK_INDEX_URL, refresh=True)
 
@@ -298,13 +309,17 @@ class GeofabrikResolver:
                     break
         return pruned
 
-    def _ensure_pbf(self, region: GeofabrikRegion, *, refresh: bool) -> Path:
+    def _ensure_pbf(self, region: GeofabrikRegion, *, refresh: bool, progress: Callable[[str], None] | None = None) -> Path:
         parsed = urlparse(region.pbf_url)
         filename = Path(parsed.path).name or f"{region.id.replace('/', '-')}.osm.pbf"
         target = self.cache_dir / "extracts" / Path(region.id) / filename
         if not refresh and target.exists() and not self._is_stale(target, self.pbf_ttl_seconds):
+            if progress is not None:
+                progress(f"Using cached OSM extract: {region.id}")
             LOGGER.info("Using cached OSM extract: %s", target)
             return target
+        if progress is not None:
+            progress(f"Downloading OSM extract: {region.id}")
         LOGGER.info("Downloading: %s", region.pbf_url)
         self._download_to(target, region.pbf_url, refresh=refresh)
         self._validate_pbf_file(target)
@@ -347,7 +362,14 @@ class GeofabrikResolver:
         age = time.time() - path.stat().st_mtime
         return age > ttl_seconds
 
-    def _crop_to_required_parts(self, source: Path, required_geom: BaseGeometry, work_dir: Path, region_id: str) -> list[Path]:
+    def _crop_to_required_parts(
+        self,
+        source: Path,
+        required_geom: BaseGeometry,
+        work_dir: Path,
+        region_id: str,
+        progress: Callable[[str], None] | None = None,
+    ) -> list[Path]:
         geoms: list[BaseGeometry]
         if isinstance(required_geom, MultiPolygon):
             geoms = list(required_geom.geoms)
@@ -360,6 +382,8 @@ class GeofabrikResolver:
             bbox_arg = f"{min_lon},{min_lat},{max_lon},{max_lat}"
             safe_id = region_id.replace("/", "_")
             cropped = work_dir / f"{safe_id}-{i}.crop.osm.pbf"
+            if progress is not None:
+                progress(f"Cropping extract {region_id} (part {i + 1}/{len(geoms)})")
             args = [
                 "osmium",
                 "extract",
@@ -393,6 +417,7 @@ def resolve_osm_source(
     work_dir: Path,
     cache_dir: Path | None = None,
     refresh_osm: bool = False,
+    progress: Callable[[str], None] | None = None,
 ) -> OSMResolution:
     resolver = GeofabrikResolver(cache_dir=cache_dir)
     return resolver.resolve(
@@ -401,4 +426,5 @@ def resolve_osm_source(
         overlap_degrees=overlap_degrees,
         work_dir=work_dir,
         refresh_osm=refresh_osm,
+        progress=progress,
     )

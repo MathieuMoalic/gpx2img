@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
+import warnings
 from pathlib import Path
 
 from .core import compile_tiles
@@ -21,7 +23,12 @@ def build_parser() -> argparse.ArgumentParser:
         required=False,
         help="Optional manual OSM PBF override. If omitted, data is resolved from Geofabrik automatically.",
     )
-    parser.add_argument("--mkgmap-jar", type=Path, required=True, help="Path to mkgmap jar")
+    parser.add_argument(
+        "--mkgmap-jar",
+        type=Path,
+        required=False,
+        help="Path to mkgmap jar. Defaults to GPX2IMG_MKGMAP_JAR when set.",
+    )
     parser.add_argument(
         "--output-dir",
         type=Path,
@@ -73,8 +80,18 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
+    warnings.warn(
+        "gpx2img CLI is deprecated and kept only for debugging. Use the web UI/server instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     parser = build_parser()
     args = parser.parse_args()
+    mkgmap_jar = args.mkgmap_jar or (
+        Path(os.environ["GPX2IMG_MKGMAP_JAR"]) if os.environ.get("GPX2IMG_MKGMAP_JAR") else None
+    )
+    if mkgmap_jar is None:
+        parser.error("--mkgmap-jar is required (or set GPX2IMG_MKGMAP_JAR)")
 
     resolved_osm: Path | None = args.osm_pbf
     if resolved_osm is None and not args.dry_run:
@@ -93,7 +110,7 @@ def main() -> None:
     manifest = compile_tiles(
         gpx_path=args.gpx,
         osm_pbf_path=resolved_osm,
-        mkgmap_jar=args.mkgmap_jar,
+        mkgmap_jar=mkgmap_jar,
         output_dir=args.output_dir,
         buffer_km=args.buffer_km,
         overlap_degrees=args.overlap_degrees,

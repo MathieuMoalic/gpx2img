@@ -25,6 +25,7 @@ dev = [
 
 [project.scripts]
 gpx2img = "gpx2img.cli:main"
+gpx2img-web = "gpx2img.web:serve_main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

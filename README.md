@@ -17,7 +17,7 @@ The tool takes a GPX route, computes zoom-11 slippy tiles, extracts per-tile OSM
 - Python 3.11+
 - `java`
 - `osmium` CLI
-- `mkgmap` JAR file (for example `mkgmap-r4924/mkgmap.jar`)
+- `mkgmap` JAR file (for non-Nix installs)
 - Internet access for automatic Geofabrik downloads (unless you provide `--osm-pbf`)
 
 ## Install
@@ -28,11 +28,26 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
-Or with Nix + uv:
+Or with Nix:
 
 ```bash
 nix develop
-uv sync --extra dev
+```
+
+## Nix package (bundled mkgmap.jar, web-first)
+
+The flake package downloads and bundles `mkgmap.jar` automatically, and sets `GPX2IMG_MKGMAP_JAR` for you.
+
+Run web server directly (default app):
+
+```bash
+nix run .#
+```
+
+Optional host/port:
+
+```bash
+nix run .# -- --host 0.0.0.0 --port 8000
 ```
 
 With direnv + .env defaults:
@@ -49,14 +64,40 @@ GPX2IMG_MKGMAP_JAR=/absolute/path/to/mkgmap.jar
 GPX2IMG_OUTPUT_DIR=output
 ```
 
-## Usage
+## Web usage (primary)
+
+Run the web app:
+
+```bash
+nix run .#
+```
+
+Or in dev mode with autoreload:
+
+```bash
+just serve 0.0.0.0 8000
+```
+
+Open:
+
+`http://localhost:8000`
+
+Use the form:
+- upload GPX
+- watch live progress logs (OSM resolve/download, osmium extract/merge, mkgmap tile builds)
+- click **Generate and download ZIP**
+
+## CLI usage (deprecated, debug only)
+
+The CLI is deprecated and kept only for debugging.
 
 ```bash
 gpx2img \
   --gpx /path/to/route.gpx \
-  --mkgmap-jar /path/to/mkgmap.jar \
   --output-dir /path/to/output
 ```
+
+If `GPX2IMG_MKGMAP_JAR` is not set, provide `--mkgmap-jar /path/to/mkgmap.jar`.
 
 By default, `gpx2img` automatically:
 1. computes the required zoom-11 tile coverage (including overlap),
@@ -98,26 +139,9 @@ Manual override variant:
 just build /path/to/route.gpx /path/to/region.osm.pbf /path/to/mkgmap.jar
 ```
 
-Run the web app (requires `mkgmap.jar`, `osmium`, and network access for automatic downloads unless using manual override):
+Server requirement for Web UI/API:
 
 ```bash
-just serve 0.0.0.0 8000
-```
-
-Open:
-
-`http://localhost:8000`
-
-Use the form:
-- upload GPX
-- set `mkgmap_jar`
-- optional: set `osm_pbf` as a manual override
-- click **Generate and download ZIP**
-
-Optional defaults for the Web UI/API (manual override path):
-
-```bash
-export GPX2IMG_OSM_PBF=/absolute/path/to/region.osm.pbf
 export GPX2IMG_MKGMAP_JAR=/absolute/path/to/mkgmap.jar
 just serve
 ```
@@ -126,8 +150,6 @@ If you use `.env` + `direnv`, those fields are auto-prefilled in the Web UI.
 
 Then POST multipart/form-data to /generate with fields:
 - gpx_file: file
-- osm_pbf: optional absolute path to OSM PBF on server
-- mkgmap_jar: absolute path to mkgmap.jar on server
 - buffer_km, overlap_degrees, levels, overview_levels (optional)
 - refresh_osm (optional boolean)
 

@@ -140,7 +140,6 @@ def test_web_generate_automatic_mode(monkeypatch, tmp_path: Path) -> None:
         web.generate(
             background_tasks=BackgroundTasks(),
             gpx_file=upload,
-            osm_pbf=None,
             mkgmap_jar=str(jar),
             buffer_km=1.0,
             overlap_degrees=0.002,
