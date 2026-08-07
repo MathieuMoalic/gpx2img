@@ -140,50 +140,132 @@ async def index() -> str:
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
   <title>gpx2img</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='4' y='8' width='56' height='48' rx='4' fill='%23e6f4ea' stroke='%232f6f44' stroke-width='3'/%3E%3Cpath d='M18 10v44M34 10v44M50 10v44' stroke='%2394c7a0' stroke-width='3'/%3E%3Cpath d='M14 42c8-12 14-18 22-20 6-2 10 1 14 5' fill='none' stroke='%231b5e20' stroke-width='4' stroke-linecap='round'/%3E%3Ccircle cx='14' cy='42' r='3' fill='%23d32f2f'/%3E%3Ccircle cx='50' cy='27' r='3' fill='%23d32f2f'/%3E%3C/svg%3E" />
   <style>
-    body { max-width: 760px; margin: 2rem auto; font-family: system-ui, sans-serif; line-height: 1.4; }
-    form { display: grid; gap: .8rem; }
-    label { display: grid; gap: .25rem; }
-    input, button { padding: .55rem; font: inherit; }
-    button { cursor: pointer; }
-    .muted { color: #555; font-size: .95rem; }
-    .hint { color: #666; font-size: .88rem; }
-    #status { white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background: #f7f7f7; padding: .8rem; border-radius: .4rem; min-height: 6rem; }
+    :root {
+      color-scheme: dark;
+      --bg: #0b1020;
+      --panel: #121a31;
+      --panel-2: #17213f;
+      --text: #e7ecff;
+      --muted: #9fb0d8;
+      --accent: #7aa2ff;
+      --accent-2: #5f88eb;
+      --border: #25355f;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      line-height: 1.4;
+      color: var(--text);
+      background: radial-gradient(1000px 500px at 10% -10%, #1a2953 0%, var(--bg) 50%, #090d1a 100%);
+    }
+    .wrap {
+      max-width: 840px;
+      margin: 0 auto;
+      display: grid;
+      gap: 1rem;
+    }
+    .panel {
+      background: linear-gradient(180deg, var(--panel), var(--panel-2));
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, .25);
+    }
+    h1 { margin: 0 0 .5rem; font-size: 1.5rem; }
+    h3 { margin: 0 0 .6rem; font-size: 1rem; color: var(--muted); }
+    form { display: grid; gap: .9rem; }
+    label { display: grid; gap: .35rem; font-weight: 600; }
+    input, button {
+      width: 100%;
+      padding: .62rem .75rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #0e152b;
+      color: var(--text);
+      font: inherit;
+    }
+    input:focus, button:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(122, 162, 255, .2);
+    }
+    input[type="checkbox"] {
+      width: 1rem;
+      height: 1rem;
+      margin-right: .5rem;
+      vertical-align: middle;
+    }
+    .checkbox-label {
+      display: block;
+      font-weight: 500;
+      color: var(--muted);
+    }
+    button {
+      cursor: pointer;
+      border-color: #5b7fd4;
+      background: linear-gradient(180deg, var(--accent), var(--accent-2));
+      color: #fff;
+      font-weight: 700;
+    }
+    button:hover { filter: brightness(1.06); }
+    .muted { color: var(--muted); font-size: .95rem; margin: 0; }
+    .hint { color: #90a0c7; font-size: .86rem; font-weight: 400; }
+    #status {
+      white-space: pre-wrap;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      background: #0c1226;
+      color: #d9e3ff;
+      border: 1px solid var(--border);
+      padding: .9rem;
+      border-radius: 10px;
+      min-height: 8rem;
+      margin: 0;
+    }
   </style>
 </head>
 <body>
-  <h1>GPX to Zepp 11 folder</h1>
-  <p class="muted">Upload a GPX and download a ZIP containing <code>11/&lt;x&gt;/&lt;y&gt;.img</code>.</p>
-  <p class="muted">OSM data source: <strong>Automatic (Geofabrik)</strong></p>
+  <main class="wrap">
+    <section class="panel">
+      <h1>GPX to Zepp 11 folder</h1>
+      <p class="muted">Upload a GPX and download a ZIP containing <code>11/&lt;x&gt;/&lt;y&gt;.img</code>.</p>
+      <p class="muted">OSM data source: <strong>Automatic (Geofabrik)</strong></p>
+      <form id="f">
+        <label>GPX file
+          <input name="gpx_file" type="file" accept=".gpx" required />
+          <span class="hint">Route file you want to convert.</span>
+        </label>
+        <label>Buffer km
+          <input name="buffer_km" type="number" step="0.1" value="1.0" />
+        </label>
+        <label>Overlap degrees
+          <input name="overlap_degrees" type="number" step="0.0001" value="0.002" />
+        </label>
+        <label>Levels
+          <input name="levels" value="0:24,1:22,2:20,3:18,4:16" />
+        </label>
+        <label>Overview levels
+          <input name="overview_levels" value="3:18,4:16" />
+        </label>
+        <label class="checkbox-label">
+          <input name="refresh_osm" type="checkbox" value="true" />
+          Refresh OSM cache before generation
+        </label>
+        <button type="submit">Generate and download ZIP</button>
+      </form>
+    </section>
 
-  <form id="f">
-    <label>GPX file
-      <input name="gpx_file" type="file" accept=".gpx" required />
-      <span class="hint">Route file you want to convert.</span>
-    </label>
-    <label>Buffer km
-      <input name="buffer_km" type="number" step="0.1" value="1.0" />
-    </label>
-    <label>Overlap degrees
-      <input name="overlap_degrees" type="number" step="0.0001" value="0.002" />
-    </label>
-    <label>Levels
-      <input name="levels" value="0:24,1:22,2:20,3:18,4:16" />
-    </label>
-    <label>Overview levels
-      <input name="overview_levels" value="3:18,4:16" />
-    </label>
-    <label>
-      <input name="refresh_osm" type="checkbox" value="true" />
-      Refresh OSM cache before generation
-    </label>
-    <button type="submit">Generate and download ZIP</button>
-  </form>
-
-  <h3>Progress</h3>
-  <p id="status" class="muted">Idle.</p>
+    <section class="panel">
+      <h3>Progress</h3>
+      <p id="status">Idle.</p>
+    </section>
+  </main>
 
   <script>
     const form = document.getElementById('f');
