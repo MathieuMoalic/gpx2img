@@ -50,6 +50,30 @@ Optional host/port:
 nix run .# -- --host 0.0.0.0 --port 8000
 ```
 
+## NixOS service
+
+```nix
+{
+  inputs.gpx2img.url = "github:MathieuMoalic/gpx2img";
+  outputs = { self, nixpkgs, gpx2img, ... }: {
+    nixosConfigurations.myhost = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [
+        gpx2img.nixosModules.gpx2img
+        ({ services.gpx2img = {
+          enable = true;
+          host = "0.0.0.0";
+          port = 8000;
+          openFirewall = true;
+        }; })
+      ];
+    };
+  };
+}
+```
+
+The service runs the web app as `gpx2img-web` and uses the bundled mkgmap jar from the flake package.
+
 With direnv + .env defaults:
 
 ```bash

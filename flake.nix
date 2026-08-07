@@ -6,6 +6,90 @@
   outputs = {self, nixpkgs, ...}: let
     systems = ["x86_64-linux"];
     forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f (import nixpkgs {inherit system;}));
+    nixosModule = {
+      lib,
+      config,
+      pkgs,
+      ...
+    }: let
+      cfg = config.services.gpx2img;
+    in {
+      options.services.gpx2img = {
+        enable = lib.mkEnableOption "gpx2img web server";
+
+        package = lib.mkOption {
+          type = lib.types.package;
+          default = self.packages.${pkgs.stdenv.hostPlatform.system}.default;
+          description = "The gpx2img package to use.";
+        };
+
+        host = lib.mkOption {
+          type = lib.types.str;
+          default = "127.0.0.1";
+          description = "Address the web server binds to.";
+        };
+
+        port = lib.mkOption {
+          type = lib.types.port;
+          default = 8000;
+          description = "TCP port the web server listens on.";
+        };
+
+        user = lib.mkOption {
+          type = lib.types.str;
+          default = "gpx2img";
+          description = "System user that runs the service.";
+        };
+
+        group = lib.mkOption {
+          type = lib.types.str;
+          default = "gpx2img";
+          description = "System group that runs the service.";
+        };
+
+        openFirewall = lib.mkOption {
+          type = lib.types.bool;
+          default = false;
+          description = "Open the configured port in the firewall.";
+        };
+      };
+
+      config = lib.mkIf cfg.enable {
+        users.users.${cfg.user} = {
+          isSystemUser = true;
+          group = cfg.group;
+          home = "/var/lib/gpx2img";
+          createHome = true;
+        };
+
+        users.groups.${cfg.group} = {};
+
+        systemd.tmpfiles.rules = [
+          "d /var/lib/gpx2img 0750 ${cfg.user} ${cfg.group} - -"
+        ];
+
+        systemd.services.gpx2img = {
+          description = "gpx2img web server";
+          after = ["network.target"];
+          wantedBy = ["multi-user.target"];
+
+          serviceConfig = {
+            ExecStart = "${cfg.package}/bin/gpx2img-web --host ${cfg.host} --port ${toString cfg.port}";
+            User = cfg.user;
+            Group = cfg.group;
+            WorkingDirectory = "/var/lib/gpx2img";
+            Restart = "always";
+            RestartSec = "5s";
+            NoNewPrivileges = "yes";
+            PrivateTmp = "yes";
+            ProtectSystem = "strict";
+            ReadWritePaths = ["/var/lib/gpx2img"];
+          };
+        };
+
+        networking.firewall.allowedTCPPorts = lib.optionals cfg.openFirewall [cfg.port];
+      };
+    };
   in {
     packages = forAllSystems (pkgs: let
       python = pkgs.python312.override {
@@ -125,5 +209,7 @@
         '';
       };
     });
+
+    nixosModules.gpx2img = nixosModule;
   };
 }
