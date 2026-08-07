@@ -144,11 +144,12 @@
         paths = [gpx2img];
         nativeBuildInputs = [pkgs.makeWrapper];
         postBuild = ''
+          mkgmapJarPath=${mkgmapJar}/share/mkgmap/mkgmap-r4924/mkgmap.jar
           wrapProgram $out/bin/gpx2img \
-            --set-default GPX2IMG_MKGMAP_JAR ${mkgmapJar}/share/mkgmap/mkgmap.jar \
+            --set-default GPX2IMG_MKGMAP_JAR "$mkgmapJarPath" \
             --prefix PATH : ${pkgs.lib.makeBinPath [pkgs.jdk pkgs.osmium-tool]}
           wrapProgram $out/bin/gpx2img-web \
-            --set-default GPX2IMG_MKGMAP_JAR ${mkgmapJar}/share/mkgmap/mkgmap.jar \
+            --set-default GPX2IMG_MKGMAP_JAR "$mkgmapJarPath" \
             --prefix PATH : ${pkgs.lib.makeBinPath [pkgs.jdk pkgs.osmium-tool]}
         '';
       };
