@@ -12,6 +12,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 from starlette.concurrency import run_in_threadpool
 
 from .core import compile_tiles
+from .osm_source import default_osm_cache_dir, resolve_osm_source
 
 app = FastAPI(title="gpx2img web")
 
@@ -21,7 +22,6 @@ DEFAULT_MKGMAP_JAR = os.getenv("GPX2IMG_MKGMAP_JAR", "")
 
 @app.get("/", response_class=HTMLResponse)
 async def index() -> str:
-    default_osm = escape(DEFAULT_OSM_PBF)
     default_mkgmap = escape(DEFAULT_MKGMAP_JAR)
     return f"""<!doctype html>
 <html lang="en">
@@ -43,15 +43,12 @@ async def index() -> str:
 <body>
   <h1>GPX to Zepp 11 folder</h1>
   <p class="muted">Upload a GPX and download a ZIP containing <code>11/&lt;x&gt;/&lt;y&gt;.img</code>.</p>
+  <p class="muted">OSM data source: <strong>Automatic (Geofabrik)</strong></p>
 
   <form id="f">
     <label>GPX file
       <input name="gpx_file" type="file" accept=".gpx" required />
       <span class="hint">Route file you want to convert. All GPX points are used to compute tile coverage.</span>
-    </label>
-    <label>OSM PBF path (on server)
-      <input name="osm_pbf" value="{default_osm}" placeholder="/absolute/path/to/region.osm.pbf" required />
-      <span class="hint">Absolute path on this machine to the regional <code>.osm.pbf</code> source data used to build map tiles.</span>
     </label>
     <label>mkgmap.jar path (on server)
       <input name="mkgmap_jar" value="{default_mkgmap}" placeholder="/absolute/path/to/mkgmap.jar" required />
@@ -72,6 +69,11 @@ async def index() -> str:
     <label>Overview levels
       <input name="overview_levels" value="3:18,4:16" />
       <span class="hint">Passed to mkgmap <code>--overview-levels</code>. Important for long-route far-zoom previews on watch.</span>
+    </label>
+    <label>
+      <input name="refresh_osm" type="checkbox" value="true" />
+      Refresh OSM cache before generation
+      <span class="hint">If checked, Geofabrik index and source extracts are refreshed instead of reusing cache.</span>
     </label>
     <button type="submit">Generate and download ZIP</button>
   </form>
@@ -119,6 +121,7 @@ async def generate(
     overlap_degrees: float = Form(0.002),
     levels: str = Form("0:24,1:22,2:20,3:18,4:16"),
     overview_levels: str = Form("3:18,4:16"),
+    refresh_osm: bool = Form(False),
 ):
     td = Path(tempfile.mkdtemp(prefix="gpx2img-"))
     try:
@@ -126,18 +129,28 @@ async def generate(
         with gpx_path.open("wb") as f:
             f.write(await gpx_file.read())
 
-        osm_pbf = osm_pbf or DEFAULT_OSM_PBF
+        osm_pbf = (osm_pbf or "").strip() or DEFAULT_OSM_PBF
         mkgmap_jar = mkgmap_jar or DEFAULT_MKGMAP_JAR
-        if not osm_pbf or not mkgmap_jar:
-            raise HTTPException(status_code=400, detail="osm_pbf and mkgmap_jar form fields are required")
+        if not mkgmap_jar:
+            raise HTTPException(status_code=400, detail="mkgmap_jar form field is required")
 
         output_dir = td / "output"
         output_dir.mkdir(parents=True, exist_ok=True)
+        work_dir = output_dir / "_work"
+        work_dir.mkdir(parents=True, exist_ok=True)
 
         def work():
+            resolved_osm = Path(osm_pbf) if osm_pbf else resolve_osm_source(
+                gpx_path=gpx_path,
+                buffer_km=buffer_km,
+                overlap_degrees=overlap_degrees,
+                work_dir=work_dir,
+                cache_dir=default_osm_cache_dir(),
+                refresh_osm=refresh_osm,
+            ).pbf_path
             return compile_tiles(
                 gpx_path=gpx_path,
-                osm_pbf_path=Path(osm_pbf),
+                osm_pbf_path=resolved_osm,
                 mkgmap_jar=Path(mkgmap_jar),
                 output_dir=output_dir,
                 buffer_km=buffer_km,
@@ -158,6 +171,12 @@ async def generate(
 
         background_tasks.add_task(shutil.rmtree, td, True)
         return FileResponse(str(zip_path), media_type="application/zip", filename="11.zip")
+    except HTTPException:
+        shutil.rmtree(td, ignore_errors=True)
+        raise
+    except RuntimeError as exc:
+        shutil.rmtree(td, ignore_errors=True)
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception:
         shutil.rmtree(td, ignore_errors=True)
         raise

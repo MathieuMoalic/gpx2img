@@ -8,7 +8,7 @@ output/
 .DS_Store
 /.direnv
 /.env
-/test.gpx
+*.gpx
 /mkgmap-r4924
 /output/_work
 /wielkopolskie-260805.osm.pbf
