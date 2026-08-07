@@ -10,28 +10,23 @@
     in
     {
       devShells.x86_64-linux.default = pkgs.mkShell {
-        packages = with pkgs; [
+        buildInputs = with pkgs; [
           python312
           jdk
           osmium-tool
           just
           zip
           unzip
+          uv
         ];
 
         shellHook = ''
-          # create and activate venv, then install Python deps into it
-          if [ -z "${VIRTUAL_ENV-}" ]; then
-            if [ ! -d .venv ]; then
-              echo "Creating .venv and installing Python deps..."
-              python -m venv .venv
-              . .venv/bin/activate
-              python -m pip install --upgrade pip
-              pip install -e ".[dev]"
-            else
-              . .venv/bin/activate
-            fi
+          # Create .venv using uv (astral uv) and activate it
+          if [ ! -d ".venv" ]; then
+            echo "Creating virtual environment with uv..."
+            uv venv .venv
           fi
+          . .venv/bin/activate
         '';
       };
     };
