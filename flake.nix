@@ -117,7 +117,8 @@
         installPhase = ''
           runHook preInstall
           mkdir -p $out/share/mkgmap
-          unzip -j "$src" "mkgmap-${version}/mkgmap.jar" -d $out/share/mkgmap
+          unzip -q "$src" -d $out/share
+          mv $out/share/mkgmap-${version} $out/share/mkgmap
           runHook postInstall
         '';
       };

@@ -219,6 +219,21 @@ def require_binary(name: str) -> None:
         raise RuntimeError(f"Missing required binary: {name}")
 
 
+def mkgmap_command(mkgmap_jar: Path, args: list[str]) -> list[str]:
+    classpath_dir = mkgmap_jar.parent
+    lib_dir = classpath_dir / "lib"
+    if lib_dir.exists():
+        classpath = [str(classpath_dir / "mkgmap.jar"), str(lib_dir / "*")]
+        return [
+            "java",
+            "-cp",
+            ":".join(classpath),
+            "uk.me.parabola.mkgmap.main.Main",
+            *args,
+        ]
+    return ["java", "-jar", str(mkgmap_jar), *args]
+
+
 def compile_tiles(
     *,
     gpx_path: Path,
@@ -291,19 +306,19 @@ def compile_tiles(
             )
             emit(f"[{idx}/{total}] Running mkgmap for z11/{x}/{y}")
             run_command(
-                [
-                    "java",
-                    "-jar",
-                    str(mkgmap_jar),
-                    f"--output-dir={work_dir}",
-                    f"--mapname={mapname}",
-                    "--description=OSM street map",
-                    "--family-id=6324",
-                    "--product-id=1",
-                    f"--levels={levels}",
-                    f"--overview-levels={overview_levels}",
-                    str(osm_extract),
-                ],
+                mkgmap_command(
+                    mkgmap_jar,
+                    [
+                        f"--output-dir={work_dir}",
+                        f"--mapname={mapname}",
+                        "--description=OSM street map",
+                        "--family-id=6324",
+                        "--product-id=1",
+                        f"--levels={levels}",
+                        f"--overview-levels={overview_levels}",
+                        str(osm_extract),
+                    ],
+                ),
                 label=f"mkgmap z11/{x}/{y}",
             )
             final_dir.mkdir(parents=True, exist_ok=True)
